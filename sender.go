@@ -8,9 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
-	"time"
 )
 
 const (
@@ -113,63 +111,10 @@ func (s *Sender) Send(msg *Message, retries int) (*Response, error) {
 		return resp, nil
 	}
 
-	// One or more messages failed to send.
-	regIDs := msg.RegistrationIDs
-	allResults := make(map[string]Result, len(regIDs))
-	backoff := backoffInitialDelay
-	for i := 0; updateStatus(msg, resp, allResults) > 0 && i < retries; i++ {
-		sleepTime := backoff/2 + rand.Intn(backoff)
-		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
-		backoff = min(2*backoff, maxBackoffDelay)
-		if resp, err = s.SendNoRetry(msg); err != nil {
-			msg.RegistrationIDs = regIDs
-			return nil, err
-		}
-	}
-
-	// Bring the message back to its original state.
-	msg.RegistrationIDs = regIDs
-
-	// Create a Response containing the overall results.
-	finalResults := make([]Result, len(regIDs))
-	var success, failure, canonicalIDs int
-	for i := 0; i < len(regIDs); i++ {
-		result, _ := allResults[regIDs[i]]
-		finalResults[i] = result
-		if result.MessageID != "" {
-			if result.RegistrationID != "" {
-				canonicalIDs++
-			}
-			success++
-		} else {
-			failure++
-		}
-	}
-
-	return &Response{
-		// Return the most recent multicast id.
-		MulticastID:  resp.MulticastID,
-		Success:      success,
-		Failure:      failure,
-		CanonicalIDs: canonicalIDs,
-		Results:      finalResults,
-	}, nil
+	return resp, nil
 }
 
-// updateStatus updates the status of the messages sent to devices and
-// returns the number of recoverable errors that could be retried.
-func updateStatus(msg *Message, resp *Response, allResults map[string]Result) int {
-	unsentRegIDs := make([]string, 0, resp.Failure)
-	for i := 0; i < len(resp.Results); i++ {
-		regID := msg.RegistrationIDs[i]
-		allResults[regID] = resp.Results[i]
-		if resp.Results[i].Error == "Unavailable" {
-			unsentRegIDs = append(unsentRegIDs, regID)
-		}
-	}
-	msg.RegistrationIDs = unsentRegIDs
-	return len(unsentRegIDs)
-}
+
 
 // min returns the smaller of two integers. For exciting religious wars
 // about why this wasn't included in the "math" package, see this thread:
@@ -197,10 +142,8 @@ func checkSender(sender *Sender) error {
 func checkMessage(msg *Message) error {
 	if msg == nil {
 		return errors.New("the message must not be nil")
-	} else if msg.RegistrationIDs == nil {
+	} else if msg.RegistrationIDs == nil && msg.To == "" {
 		return errors.New("the message's RegistrationIDs field must not be nil")
-	} else if len(msg.RegistrationIDs) == 0 {
-		return errors.New("the message must specify at least one registration ID")
 	} else if len(msg.RegistrationIDs) > 1000 {
 		return errors.New("the message may specify at most 1000 registration IDs")
 	} else if msg.TimeToLive < 0 || 2419200 < msg.TimeToLive {
