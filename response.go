@@ -14,7 +14,8 @@ type Response struct {
 
 // Result represents the status of a processed message.
 type Result struct {
-	MessageID      string `json:"message_id"`
-	RegistrationID string `json:"registration_id"`
-	Error          string `json:"error"`
+	MessageID         string `json:"message_id"`
+	RegistrationID    string `json:"registration_id"`
+	Error             string `json:"error"`
+	OldRegistrationID string `json:"-"`
 }
