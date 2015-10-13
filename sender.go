@@ -14,10 +14,6 @@ import (
 const (
 	// GcmSendEndpoint is the endpoint for sending messages to the GCM server.
 	GcmSendEndpoint = "https://android.googleapis.com/gcm/send"
-	// Initial delay before first retry, without jitter.
-	backoffInitialDelay = 1000
-	// Maximum delay before a retry.
-	maxBackoffDelay = 1024000
 )
 
 // Declared as a mutable variable for testing purposes.
@@ -94,20 +90,19 @@ func (s *Sender) SendNoRetry(msg *Message) (*Response, error) {
 //
 // Note that messages are retried using exponential backoff, and as a
 // result, this method may block for several seconds.
-func (s *Sender) Send(msg *Message, retries int) (*Response, error) {
+func (s *Sender) Send(msg *Message) (*Response, error) {
 	if err := checkSender(s); err != nil {
 		return nil, err
 	} else if err := checkMessage(msg); err != nil {
 		return nil, err
-	} else if retries < 0 {
-		return nil, errors.New("'retries' must not be negative.")
 	}
 
 	// Send the message for the first time.
 	resp, err := s.SendNoRetry(msg)
 	if err != nil {
 		return nil, err
-	} else if resp.Failure == 0 || retries == 0 {
+	} else if resp.Failure == 0 {
+		//no errors
 		return resp, nil
 	}
 
