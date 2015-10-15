@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"log"
 )
 
 const (
@@ -111,7 +110,7 @@ func (s *Sender) Send(msg *Message) (*Response, error) {
 		if len(resp.Results) == 1{
 			resp.Results[0].OldRegistrationID = msg.To
 		}else{
-			log.Fatalf("Incorrect result: %+v",resp)
+			return resp, errors.New("Incorrect result")
 		}	
 	}else{
 		if len(resp.Results) == len(msg.RegistrationIDs){
@@ -120,7 +119,7 @@ func (s *Sender) Send(msg *Message) (*Response, error) {
 				resp.Results[i].OldRegistrationID = msg.RegistrationIDs[i]
 			}
 		}else{
-			log.Fatalf("Incorrect result: %+v",resp)
+			return resp, errors.New("Incorrect result")
 		}
 	}
 
